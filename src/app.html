@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writ Planner — WoW Forever</title>
+<style>
+  :root{
+    --bg:#14161a; --panel:#1c1f25; --panel2:#23272e; --line:#2f343d; --text:#e6e3dc; --muted:#9a9a93;
+    --gold:#e8c35a; --silver:#c9cdd3; --copper:#d08a55; --good:#7cc47f; --bad:#e07a6a; --accent:#6fa8dc;
+    --J:#5cb85c; --E:#4f8fd6; --A:#b06fe0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+  header{padding:18px 24px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
+  h1{margin:0 0 4px;font-size:20px;font-weight:650;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:13px}
+  main{padding:16px 24px 60px;max-width:1500px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:12px 0}
+  .bar label{color:var(--muted);font-size:13px;display:flex;gap:6px;align-items:center}
+  select,input[type=text],input[type=number]{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit}
+  input[type=number]{width:80px}
+  button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 12px;font:inherit;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:#2d4a66;border-color:#3d6488}
+  #drop{border:2px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted);margin:16px 0}
+  #drop.over{border-color:var(--accent);color:var(--text)}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .status{font-size:13px;color:var(--muted)}
+  .status b{color:var(--text)}
+  .tabs{display:flex;gap:4px;margin-top:14px;border-bottom:1px solid var(--line)}
+  .tabs button{border-radius:6px 6px 0 0;border-bottom:none;background:transparent;color:var(--muted)}
+  .tabs button.on{background:var(--panel);color:var(--text);border-color:var(--line)}
+  table{border-collapse:collapse;width:100%}
+  th,td{padding:5px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+  th{font-size:12px;color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--bg);cursor:pointer;user-select:none}
+  th.num,td.num{text-align:right}
+  tr.loc{cursor:pointer;background:var(--panel)}
+  tr.loc:hover{background:var(--panel2)}
+  tr.loc td:first-child{font-weight:600}
+  tr.npc td{background:#191c21;color:var(--muted);font-size:12.5px;padding-top:8px}
+  tr.w td{font-size:13px}
+  tr.w.na td{color:var(--muted)}
+  .caret{display:inline-block;width:14px;color:var(--muted)}
+  .tier{display:inline-block;min-width:18px;text-align:center;border-radius:4px;font-size:11px;font-weight:700;padding:0 4px;color:#111}
+  .tier.J{background:var(--J)} .tier.E{background:var(--E)} .tier.A{background:var(--A)}
+  .prof{color:var(--muted);font-size:12px}
+  a{color:#9cc6ee;text-decoration:none} a:hover{text-decoration:underline}
+  a.q3{color:#4f9ef0}
+  .g{color:var(--gold)} .s{color:var(--silver)} .c{color:var(--copper)}
+  .muted{color:var(--muted)} .good{color:var(--good)} .bad{color:var(--bad)}
+  .warn{color:#e0b060}
+  .pill{font-size:11px;border:1px solid var(--line);border-radius:10px;padding:0 6px;color:var(--muted)}
+  .hostile{color:var(--bad)} .friendly{color:var(--good)}
+  svg.spark{vertical-align:middle}
+  .note{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;color:var(--muted);font-size:13px;margin:12px 0}
+  .locin{width:170px;font-size:12.5px;padding:3px 6px}
+  .hidden{display:none}
+  details summary{cursor:pointer;color:var(--muted)}
+  button.copy{font-size:11px;padding:1px 6px;border-radius:4px;color:var(--muted);background:transparent;margin-left:2px;vertical-align:1px}
+  button.copy:hover{color:var(--text)}
+  button.copy.done{color:var(--good);border-color:var(--good)}</style>
+</head>
+<body>
+<header>
+  <h1>Craftsman's Writ planner</h1>
+  <div class="sub">WoW Forever · writs grouped by delivery location, priced from your Auctionator scans</div>
+</header>
+<main>
+  <div id="drop">
+    <div style="margin-bottom:10px">Drop <code>Auctionator.lua</code> here, or</div>
+    <button class="primary" id="pick">Choose file…</button>
+    <button id="reload" class="hidden">↻ Reload last file</button>
+    <input type="file" id="file" accept=".lua" class="hidden">
+    <div style="margin-top:10px;font-size:12.5px">It's in <code>World of Warcraft\_forever_\WTF\Account\&lt;ACCOUNT&gt;\SavedVariables\</code>. WoW writes it on logout or <code>/reload</code>.</div>
+  </div>
+  <div class="status" id="status"></div>
+
+  <div id="ui" class="hidden">
+    <div class="bar">
+      <label>Realm <select id="realm"></select></label>
+      <label>Faction <select id="faction"><option value="any">Any</option><option value="a">Alliance</option><option value="h">Horde</option></select></label>
+      <label>Profession <select id="prof"><option value="">All</option><option>Alchemy</option><option>Blacksmithing</option><option>Engineering</option><option>Leatherworking</option><option>Tailoring</option></select></label>
+      <label>Tier <select id="tier"><option value="">All</option><option value="J">Journeyman</option><option value="E">Expert</option><option value="A">Artisan</option></select></label>
+      <label title="Ignore writs whose writ+item total is above this">Max per writ <input type="number" id="maxg" min="0" step="0.5" placeholder="gold"></label>
+      <label><input type="checkbox" id="buyable" checked> Only buyable now</label>
+      <label title="Treat prices not seen in the latest scan as unavailable"><input type="checkbox" id="fresh"> Only seen in latest scan</label>
+    </div>
+    <div class="tabs">
+      <button data-tab="loc" class="on">By location</button>
+      <button data-tab="all">All writs</button>
+      <button data-tab="unk">Location unknown <span id="unkcount" class="pill"></span></button>
+    </div>
+    <div id="tab-loc"></div>
+    <div id="tab-all" class="hidden"></div>
+    <div id="tab-unk" class="hidden"></div>
+  </div>
+</main>
+
+<script>
+/*CORE*/
+</script>
+<script>
+const WRITS = /*WRITS*/;
+const PROF = {Al:"Alchemy",Bl:"Blacksmithing",En:"Engineering",Le:"Leatherworking",Ta:"Tailoring"};
+const TIER = {J:"Journeyman",E:"Expert",A:"Artisan"};
+const REP = {J:75,E:125,A:200};
+const WH = "https://www.wowhead.com/forever/";
+const LS_KEY = "writplanner.locations.v1", LS_UI = "writplanner.ui.v1";
+
+let DB = null, realmDb = null, allDays = [], latestDay = null, fileName = "";
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ---------- user-entered locations (for writs Wowhead doesn't have yet) ----------
+function loadUserLocs(){ try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; } }
+function saveUserLocs(o){ try { localStorage.setItem(LS_KEY, JSON.stringify(o)); } catch {} }
+let userLocs = loadUserLocs();
+function locsOf(w){
+  if (w.l && w.l.length) return w.l.map(l => ({zone:l[0], npc:l[1], coord:l[2], a:l[3], h:l[4], src:"wowhead"}));
+  const u = userLocs[w.w];
+  if (u && u.zone) return [{zone:u.zone, npc:u.npc||"", coord:u.coord||"", a:null, h:null, src:"you"}];
+  return [];
+}
+
+// ---------- money ----------
+function money(cp, opts={}){
+  if (cp == null || isNaN(cp)) return '<span class="muted">—</span>';
+  cp = Math.round(cp);
+  const g = Math.floor(cp/10000), s = Math.floor(cp/100)%100, c = cp%100;
+  const parts = [];
+  if (g) parts.push(`${g.toLocaleString()}<span class="g">g</span>`);
+  if (s || (g && c && !opts.short)) parts.push(`${s}<span class="s">s</span>`);
+  if (!g || !opts.short) if (c || (!g && !s)) parts.push(`${c}<span class="c">c</span>`);
+  return parts.join(" ");
+}
+const goldNum = cp => cp == null ? "" : (cp/10000).toFixed(2);
+
+// ---------- pricing ----------
+function price(id){
+  const e = AucDB.entry(realmDb, id);
+  if (!e) return null;
+  // daily series (high = highest minimum seen that day), carried forward over missing days
+  const series = []; let last = null;
+  for (const d of allDays){ if (e.high[d] != null) last = e.high[d]; series.push(last); }
+  return {...e, series, stale: e.lastDay !== latestDay};
+}
+function writRow(w){
+  const wp = price(w.w), ip = price(w.i);
+  const fresh = $("#fresh").checked;
+  const wCur = wp && (!fresh || !wp.stale) ? wp.cur : null;
+  const iCur = ip && (!fresh || !ip.stale) ? ip.cur : null;
+  const total = (wCur != null && iCur != null) ? wCur + iCur * w.c : null;
+  // total series per day
+  const series = allDays.map((d,k) => (wp && ip && wp.series[k] != null && ip.series[k] != null) ? wp.series[k] + ip.series[k]*w.c : null);
+  const hist = series.slice(0, -1).filter(v => v != null).slice(-7);
+  const avg7 = hist.length ? hist.reduce((a,b)=>a+b,0)/hist.length : null;
+  const rep = REP[w.t];
+  return {w, wp, ip, wCur, iCur, total, series, avg7, rep, per100: total != null ? total / rep * 100 : null, locs: locsOf(w)};
+}
+function passes(r){
+  const f = $("#prof").value, t = $("#tier").value, mx = parseFloat($("#maxg").value);
+  if (f && PROF[r.w.p] !== f) return false;
+  if (t && r.w.t !== t) return false;
+  if ($("#buyable").checked && r.total == null) return false;
+  if (!isNaN(mx) && r.total != null && r.total > mx*10000) return false;
+  return true;
+}
+function factionOk(l){
+  const fa = $("#faction").value; if (fa === "any") return true;
+  const v = l[fa]; return v == null || v >= 0;
+}
+
+// ---------- small renderers ----------
+function spark(series, w=90, h=22){
+  const pts = series.map((v,i)=>[i,v]).filter(p=>p[1]!=null);
+  if (pts.length < 2) return '<span class="muted" style="font-size:11px">not enough days</span>';
+  const vs = pts.map(p=>p[1]), lo = Math.min(...vs), hi = Math.max(...vs), n = series.length-1 || 1;
+  const x = i => 2 + i/n*(w-4), y = v => hi===lo ? h/2 : 2 + (1-(v-lo)/(hi-lo))*(h-4);
+  const d = pts.map((p,k)=>(k?"L":"M")+x(p[0]).toFixed(1)+" "+y(p[1]).toFixed(1)).join("");
+  const last = pts[pts.length-1], first = pts[0];
+  const col = last[1] < first[1] ? "var(--good)" : last[1] > first[1] ? "var(--bad)" : "var(--muted)";
+  const tip = pts.map(p=>`${dayLabel(allDays[p[0]])}: ${goldNum(p[1])}g`).join("\n");
+  return `<svg class="spark" width="${w}" height="${h}"><title>${esc(tip)}</title><path d="${d}" fill="none" stroke="${col}" stroke-width="1.6"/><circle cx="${x(last[0])}" cy="${y(last[1])}" r="2.2" fill="${col}"/></svg>`;
+}
+function dayLabel(d){ return AucDB.dayToDate(d).toISOString().slice(5,10); }
+function delta(cur, avg){
+  if (cur == null || avg == null || !avg) return '<span class="muted">—</span>';
+  const p = (cur-avg)/avg*100;
+  const cls = p < -5 ? "good" : p > 5 ? "bad" : "muted";
+  return `<span class="${cls}">${p>0?"+":""}${p.toFixed(0)}%</span>`;
+}
+function seen(p){
+  if (!p) return '<span class="muted">never</span>';
+  const ago = latestDay - p.lastDay;
+  const q = p.qty != null ? ` · ${p.qty.toLocaleString()} up` : "";
+  return ago === 0 ? `<span class="muted">today${q}</span>` : `<span class="warn">${ago}d ago${q}</span>`;
+}
+function itemLink(id, name, cls=""){ return `<a class="${cls}" href="${WH}item=${id}" target="_blank" rel="noopener">${esc(name)}</a>`; }
+function reaction(l){
+  const fa = $("#faction").value;
+  const show = (v, s) => v == null ? "" : `<span class="${v>0?"friendly":v<0?"hostile":"muted"}">${s}${v>0?"✓":v<0?"✗":"~"}</span>`;
+  if (l.a == null && l.h == null) return "";
+  return `${show(l.a,"A")} ${show(l.h,"H")}`;
+}
+const writName = w => "Craftsman's Writ: " + w.n;
+function copyBtn(text, label){ return `<button class="copy" data-copy="${esc(text)}" title="Copy “${esc(text)}”">⧉ ${label}</button>`; }
+async function copyText(t){
+  try { await navigator.clipboard.writeText(t); return true; }
+  catch { const ta = Object.assign(document.createElement("textarea"), {value:t}); document.body.appendChild(ta); ta.select(); const ok = document.execCommand("copy"); ta.remove(); return ok; }
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button.copy"); if (!b) return;
+  e.stopPropagation();
+  const ok = await copyText(b.dataset.copy);
+  const old = b.innerHTML; b.innerHTML = ok ? "✓ copied" : "✗ failed"; b.classList.add("done");
+  setTimeout(() => { b.innerHTML = old; b.classList.remove("done"); }, 1200);
+}, true);
+const WCOLS =`<th>Tier</th><th>Profession</th><th>Required item</th><th class="num">Writ</th><th class="num">Item</th><th class="num">Total</th><th class="num">per 100 rep</th><th class="num">vs prev. days</th><th>Trend</th><th>Writ seen</th><th>Item seen</th>`;
+function wCells(r){
+  const w = r.w;
+  return `<td><span class="tier ${w.t}" title="${TIER[w.t]}: +${REP[w.t]} rep">${w.t}</span></td>
+    <td class="prof">${PROF[w.p]}</td>
+    <td>${itemLink(w.i, w.n)}${w.c>1?` <span class="muted">×${w.c}</span>`:""} ${copyBtn(w.n, "item")} ${copyBtn(writName(w), "writ")} <a class="muted" style="font-size:11px" href="${WH}item=${w.w}" target="_blank" rel="noopener" title="The writ itself on Wowhead">↗</a></td>
+    <td class="num">${money(r.wCur)}</td>
+    <td class="num">${money(r.iCur!=null?r.iCur*w.c:null)}${w.c>1&&r.iCur!=null?`<div class="muted" style="font-size:11px">${money(r.iCur)} each</div>`:""}</td>
+    <td class="num"><b>${money(r.total)}</b></td>
+    <td class="num">${money(r.per100,{short:true})}</td>
+    <td class="num">${delta(r.total, r.avg7)}</td>
+    <td>${spark(r.series)}</td>
+    <td>${seen(r.wp)}</td><td>${seen(r.ip)}</td>`;
+}
+
+// ---------- tab: by location ----------
+let locSort = {key:"per100", dir:1};
+const openLocs = new Set();
+function renderLoc(rows){
+  // zone -> npc -> rows
+  const zones = new Map();
+  for (const r of rows){
+    if (!passes(r)) continue;
+    r.locs.forEach((l, k) => {
+      if (!factionOk(l)) return;
+      if (!zones.has(l.zone)) zones.set(l.zone, {zone:l.zone, npcs:new Map(), rows:[]});
+      const z = zones.get(l.zone);
+      const nk = l.npc + "|" + l.coord;
+      if (!z.npcs.has(nk)) z.npcs.set(nk, {l, rows:[]});
+      z.npcs.get(nk).rows.push({...r, alt: k>0, others: r.locs.filter((_,j)=>j!==k)});
+      z.rows.push(r);
+    });
+  }
+  const list = [...zones.values()].map(z => {
+    const buy = z.rows.filter(r=>r.total!=null);
+    const cost = buy.reduce((s,r)=>s+r.total,0), rep = buy.reduce((s,r)=>s+r.rep,0);
+    // per day: cost per 100 rep across the writs that had prices that day (not a raw sum, which jumps when listings appear/disappear)
+    const tser = allDays.map((_,k)=>{ let c=0, rp=0; for(const r of buy){ if(r.series[k]!=null){c+=r.series[k]; rp+=r.rep;} } return rp? c/rp*100 : null; });
+    const onlyAlt = [...z.npcs.values()].every(n => n.rows.every(r => r.alt));
+    return {...z, onlyAlt, n:z.rows.length, nbuy:buy.length, cost, rep, per100: rep? cost/rep*100 : null,
+            cheapest: buy.length? Math.min(...buy.map(r=>r.per100)) : null, tser};
+  });
+  const k = locSort.key, d = locSort.dir;
+  list.sort((a,b)=> (a[k]==null) - (b[k]==null) || (typeof a[k]==="string" ? a[k].localeCompare(b[k]) : (a[k]-b[k])) * d);
+  const th = (key, label, num) => `<th class="${num?"num":""}" data-sort="${key}">${label}${locSort.key===key?(locSort.dir>0?" ▲":" ▼"):""}</th>`;
+  let h = `<div class="note">Each zone shows how much it costs to buy every listed writ <i>and</i> its item there, and the reputation that earns you. <b>per 100 rep</b> is the main "is the trip worth it" number. Click a zone to see its writs. Trend lines use each day's highest minimum price.</div>
+  <table><thead><tr>${th("zone","Zone")}${th("nbuy","Writs",1)}${th("cost","Cost of all",1)}${th("rep","Rep",1)}${th("per100","Cost per 100 rep",1)}${th("cheapest","Best single, per 100 rep",1)}<th title="Cost per 100 rep, per scan day">Trend (per 100 rep)</th></tr></thead><tbody>`;
+  for (const z of list){
+    const open = openLocs.has(z.zone);
+    h += `<tr class="loc" data-zone="${esc(z.zone)}"><td><span class="caret">${open?"▾":"▸"}</span>${esc(z.zone)}${z.onlyAlt?' <span class="pill" title="Wowhead lists this as a second location for these writs; it may be wrong">alternate location</span>':""}</td>
+      <td class="num">${z.nbuy}${z.n>z.nbuy?` <span class="muted">/ ${z.n}</span>`:""}</td>
+      <td class="num">${money(z.cost,{short:true})}</td><td class="num">${z.rep}</td>
+      <td class="num"><b>${money(z.per100,{short:true})}</b></td><td class="num">${money(z.cheapest,{short:true})}</td>
+      <td>${spark(z.tser,110)}</td></tr>`;
+    if (!open) continue;
+    for (const {l, rows: nr} of z.npcs.values()){
+      h += `<tr class="npc"><td colspan="7">📍 <b style="color:var(--text)">${esc(l.npc||"(NPC unknown)")}</b>${l.coord?` <span class="muted">(${esc(l.coord)})</span>`:""} ${reaction(l)} ${l.src==="you"?'<span class="pill">added by you</span>':""}</td></tr>
+        <tr class="npc"><td colspan="7" style="padding:0"><table><thead><tr>${WCOLS}</tr></thead><tbody>`;
+      nr.sort((a,b)=>(a.per100??1e18)-(b.per100??1e18));
+      for (const r of nr){
+        h += `<tr class="w ${r.total==null?"na":""}">${wCells(r)}</tr>`;
+        if (r.others.length) h += `<tr class="w"><td></td><td colspan="10" class="muted" style="font-size:11.5px;padding-top:0">${r.alt?"Alternate location from Wowhead; main one is":"Wowhead also lists"}: ${r.others.map(o=>esc(o.zone+" – "+o.npc)).join("; ")}</td></tr>`;
+      }
+      h += `</tbody></table></td></tr>`;
+    }
+  }
+  h += `</tbody></table>`;
+  if (!list.length) h += `<p class="muted">Nothing matches the filters.</p>`;
+  $("#tab-loc").innerHTML = h;
+}
+
+// ---------- tab: all writs ----------
+let allSort = {key:"per100", dir:1};
+function renderAll(rows){
+  const list = rows.filter(passes);
+  const key = allSort.key, d = allSort.dir;
+  const val = r => key==="zone" ? (r.locs[0]?.zone || "~") : key==="name" ? r.w.n : r[key];
+  list.sort((a,b)=>{ const x=val(a), y=val(b); return (x==null)-(y==null) || (typeof x==="string"? x.localeCompare(y) : (x-y))*d; });
+  const th = (k,l,num)=>`<th class="${num?"num":""}" data-asort="${k}">${l}${allSort.key===k?(allSort.dir>0?" ▲":" ▼"):""}</th>`;
+  let h = `<table><thead><tr>${th("zone","Location")}<th>Tier</th><th>Profession</th>${th("name","Required item")}${th("wCur","Writ",1)}<th class="num">Item</th>${th("total","Total",1)}${th("per100","per 100 rep",1)}<th class="num">vs prev. days</th><th>Trend</th><th>Writ seen</th><th>Item seen</th></tr></thead><tbody>`;
+  for (const r of list){
+    const l = r.locs[0];
+    h += `<tr class="w ${r.total==null?"na":""}"><td>${l?esc(l.zone)+` <span class="muted" style="font-size:12px">${esc(l.npc||"")}</span>`:'<span class="muted">unknown</span>'}</td>${wCells(r)}</tr>`;
+  }
+  $("#tab-all").innerHTML = h + `</tbody></table>`;
+}
+
+// ---------- tab: unknown locations ----------
+function renderUnk(rows){
+  const list = rows.filter(r => !(r.w.l && r.w.l.length)).filter(passes);
+  list.sort((a,b)=>(a.per100??1e18)-(b.per100??1e18));
+  let h = `<div class="note">Wowhead doesn't have a delivery location for these writs yet. When you find one in game, type the zone (and NPC, if you like) here. It's saved in this browser and the writ moves into the location view.
+    <div style="margin-top:8px"><button id="exportLocs">Export my locations</button> <button id="importLocs">Import…</button> <input type="file" id="importFile" accept=".json" class="hidden"></div></div>
+    <table><thead><tr><th>Zone</th><th>NPC</th>${WCOLS}</tr></thead><tbody>`;
+  for (const r of list){
+    const u = userLocs[r.w.w] || {};
+    h += `<tr class="w ${r.total==null?"na":""}"><td><input class="locin" list="zonelist" data-w="${r.w.w}" data-f="zone" value="${esc(u.zone||"")}" placeholder="zone…"></td>
+      <td><input class="locin" data-w="${r.w.w}" data-f="npc" value="${esc(u.npc||"")}" placeholder="NPC (optional)"></td>${wCells(r)}</tr>`;
+  }
+  const zl = [...new Set(WRITS.flatMap(w=>(w.l||[]).map(l=>l[0])).concat(Object.values(userLocs).map(u=>u.zone).filter(Boolean)))].sort();
+  h += `</tbody></table><datalist id="zonelist">${zl.map(z=>`<option value="${esc(z)}">`).join("")}</datalist>`;
+  $("#tab-unk").innerHTML = h;
+  $("#unkcount").textContent = WRITS.filter(w=>!(w.l&&w.l.length) && !(userLocs[w.w]&&userLocs[w.w].zone)).length;
+}
+
+// ---------- main render ----------
+function render(){
+  if (!realmDb) return;
+  const rows = WRITS.map(writRow);
+  renderLoc(rows); renderAll(rows); renderUnk(rows);
+  saveUi();
+}
+function selectRealm(k){
+  realmDb = DB.realms[k];
+  const days = new Set();
+  for (const key in realmDb){ const h = realmDb[key] && realmDb[key].h; if (h) for (const d in h) days.add(+d); }
+  allDays = [...days].sort((a,b)=>a-b); latestDay = allDays[allDays.length-1];
+  const nW = WRITS.filter(w=>realmDb[w.w]).length, nI = WRITS.filter(w=>realmDb[w.i]).length;
+  $("#status").innerHTML = `Loaded <b>${esc(fileName)}</b> · realm <b>${esc(k)}</b> · ${Object.keys(realmDb).length.toLocaleString()} items priced · scans from <b>${allDays.length?AucDB.dayToDate(allDays[0]).toDateString().slice(4):"?"}</b> to <b>${latestDay!=null?AucDB.dayToDate(latestDay).toDateString().slice(4):"?"}</b> (${allDays.length} days) · ${nW}/150 writs and ${nI}/150 required items have been seen on the AH`;
+  render();
+}
+function loadBytes(buf, name){
+  try {
+    DB = AucDB.parse(new Uint8Array(buf)); fileName = name;
+  } catch (e) { $("#status").innerHTML = `<span class="bad">Couldn't read that file: ${esc(e.message)}</span>`; return; }
+  const realms = Object.keys(DB.realms);
+  if (!realms.length){ $("#status").innerHTML = '<span class="bad">No price data in this file yet. Do a scan in game, then /reload.</span>'; return; }
+  $("#realm").innerHTML = realms.map(r=>`<option>${esc(r)}</option>`).join("");
+  const ui = loadUi(); if (ui.realm && realms.includes(ui.realm)) $("#realm").value = ui.realm;
+  $("#ui").classList.remove("hidden");
+  $("#drop").style.padding = "12px";
+  selectRealm($("#realm").value);
+}
+
+// ---------- persistence of UI choices ----------
+const UI_FIELDS = ["faction","prof","tier","maxg","buyable","fresh","realm"];
+function saveUi(){ const o={}; for (const f of UI_FIELDS){ const el=$("#"+f); o[f]= el.type==="checkbox"? el.checked : el.value; } try{localStorage.setItem(LS_UI, JSON.stringify(o));}catch{} }
+function loadUi(){ try { return JSON.parse(localStorage.getItem(LS_UI)) || {}; } catch { return {}; } }
+(function restoreUi(){ const o = loadUi(); for (const f of UI_FIELDS){ if (o[f]==null || f==="realm") continue; const el=$("#"+f); if (el.type==="checkbox") el.checked=o[f]; else el.value=o[f]; } })();
+
+// ---------- file handling (remembers the file where the browser supports it) ----------
+const IDB = {
+  db: () => new Promise((res, rej) => { const r = indexedDB.open("writplanner", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }),
+  async get(k){ const d = await this.db(); return new Promise(res => { const t = d.transaction("kv").objectStore("kv").get(k); t.onsuccess = () => res(t.result); t.onerror = () => res(null); }); },
+  async set(k,v){ const d = await this.db(); return new Promise(res => { const t = d.transaction("kv","readwrite"); t.objectStore("kv").put(v,k); t.oncomplete = res; t.onerror = res; }); },
+};
+let handle = null;
+async function readHandle(h){
+  if ((await h.queryPermission({mode:"read"})) !== "granted" && (await h.requestPermission({mode:"read"})) !== "granted") return;
+  const f = await h.getFile(); loadBytes(await f.arrayBuffer(), f.name);
+}
+$("#pick").onclick = async () => {
+  if (window.showOpenFilePicker){
+    try {
+      const [h] = await showOpenFilePicker({types:[{description:"Auctionator SavedVariables", accept:{"text/plain":[".lua"]}}], id:"auctionator"});
+      handle = h; try { await IDB.set("handle", h); } catch {}
+      $("#reload").classList.remove("hidden");
+      return readHandle(h);
+    } catch (e) { if (e.name === "AbortError") return; }
+  }
+  $("#file").click();
+};
+$("#file").onchange = async e => { const f = e.target.files[0]; if (f) loadBytes(await f.arrayBuffer(), f.name); };
+$("#reload").onclick = () => handle ? readHandle(handle) : $("#pick").click();
+(async () => { try { if (!window.showOpenFilePicker) return; handle = await IDB.get("handle"); if (handle) { $("#reload").classList.remove("hidden"); $("#reload").textContent = "↻ Reload " + handle.name; } } catch {} })();
+const drop = $("#drop");
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", async e => {
+  e.preventDefault(); drop.classList.remove("over");
+  const it = e.dataTransfer.items && e.dataTransfer.items[0];
+  if (it && it.getAsFileSystemHandle){ try { const h = await it.getAsFileSystemHandle(); if (h && h.kind === "file"){ handle = h; await IDB.set("handle", h); $("#reload").classList.remove("hidden"); return readHandle(h); } } catch {} }
+  const f = e.dataTransfer.files[0]; if (f) loadBytes(await f.arrayBuffer(), f.name);
+});
+
+// ---------- events ----------
+for (const id of ["faction","prof","tier","maxg","buyable","fresh"]) $("#"+id).addEventListener("input", render);
+$("#realm").addEventListener("change", e => selectRealm(e.target.value));
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x===b));
+  for (const t of ["loc","all","unk"]) $("#tab-"+t).classList.toggle("hidden", t !== b.dataset.tab);
+});
+$("#tab-loc").addEventListener("click", e => {
+  const s = e.target.closest("th[data-sort]");
+  if (s){ const k = s.dataset.sort; locSort = {key:k, dir: locSort.key===k ? -locSort.dir : (k==="nbuy"||k==="rep"?-1:1)}; return render(); }
+  const tr = e.target.closest("tr.loc"); if (!tr || e.target.closest("a")) return;
+  const z = tr.dataset.zone; openLocs.has(z) ? openLocs.delete(z) : openLocs.add(z); render();
+});
+$("#tab-all").addEventListener("click", e => {
+  const s = e.target.closest("th[data-asort]"); if (!s) return;
+  const k = s.dataset.asort; allSort = {key:k, dir: allSort.key===k ? -allSort.dir : 1}; render();
+});
+$("#tab-unk").addEventListener("change", e => {
+  const i = e.target.closest("input.locin"); if (!i) return;
+  const w = i.dataset.w; userLocs[w] = {...(userLocs[w]||{}), [i.dataset.f]: i.value.trim()};
+  if (!userLocs[w].zone && !userLocs[w].npc) delete userLocs[w];
+  saveUserLocs(userLocs); render();
+});
+$("#tab-unk").addEventListener("click", e => {
+  if (e.target.id === "exportLocs"){
+    const blob = new Blob([JSON.stringify(userLocs, null, 1)], {type:"application/json"});
+    const a = Object.assign(document.createElement("a"), {href: URL.createObjectURL(blob), download: "writ-locations.json"}); a.click();
+  }
+  if (e.target.id === "importLocs") $("#importFile").click();
+});
+$("#tab-unk").addEventListener("change", async e => {
+  if (e.target.id !== "importFile" || !e.target.files[0]) return;
+  try { const o = JSON.parse(await e.target.files[0].text()); userLocs = {...userLocs, ...o}; saveUserLocs(userLocs); render(); }
+  catch { alert("That isn't a writ-locations export."); }
+});
+</script>
+</body>
+</html>
