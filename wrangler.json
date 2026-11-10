@@ -1,0 +1,5 @@
+{
+  "name": "writ-planner",
+  "compatibility_date": "2026-11-10",
+  "assets": { "directory": "./dist" }
+}
